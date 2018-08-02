@@ -1,0 +1,24 @@
+import matplotlib.pylab as plt
+
+def factorial(n):
+	if n > 1:
+		return (n-1)*factorial(n-1)
+	else:
+		return 1
+
+x = []
+for i in range(0,1000):
+	x.append(i/1000.0)
+
+def Beta(x,a,b):
+	global y
+	y = []
+	for i in range(0,len(x)):
+		f = factorial(a+b)*x[i]**(a-1)*(1-x[i])**(b-1)/factorial(a)*factorial(b)
+		y.append(f)
+	return y
+
+print Beta(x,3,3)
+
+plt.plot(x,y,lw = 1.5, c = 'b')
+plt.show()
