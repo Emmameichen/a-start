@@ -1,0 +1,120 @@
+import random 
+import numpy as np
+import optparse
+from sklearn import cluster, datasets
+from matplotlib import pyplot as plt
+import scipy.spatial.distance as distance
+from scipy.cluster.hierarchy import dendrogram, linkage #perform hierarchial clustering
+from sklearn.preprocessing import MinMaxScaler
+
+#set initial state of optparse(False for -v and -f by default)
+parser = optparse.OptionParser()
+parser.add_option('-f', '--file', dest='fileName', help='file name to read from')
+
+(options, others) = parser.parse_args()
+usingFile = False
+
+#start to read file...
+data = []
+if options.fileName is None:
+	print ("DEBUG: the user did not enter the -f option")
+else:
+	print ("DEBUG: the user entered the -f option")
+	usingFile = True
+
+if(usingFile == True):
+	print ("DEBUG: the file name entered was: ", options.fileName)
+	file = open(options.fileName, "r")
+	for line in file:
+		line = line.strip().split(',')
+		newline = [float(i) for i in line] #convert string in each line into number(floating type)
+		data.append(newline)
+else:
+	print ("DEBUG: will read from standard input instead")
+	for line in file:
+		line = line.strip().split(',')
+		data.append(line) 
+data = np.array(data)
+
+# normalize the data
+scaler = MinMaxScaler(feature_range=(0,1))
+data = scaler.fit_transform(data)
+
+X = data
+
+Z = linkage(X, method='ward', metric='euclidean')
+dendrogram(Z,leaf_rotation=90, leaf_font_size=8) #rotate the x axis labels
+#p = 10, truncate_mode='lastp'---p and truncate_mode is used to condense the dendrogram (leaf nodes)
+plt.title("Hierarchial Clustering Dendrogram")
+plt.xlabel("sample index")
+plt.ylabel("distance")
+# visually, 3 seems like a good threshold to state the resulting number of cluster which is 2
+plt.axhline(y=3, color='black')
+plt.show()
+
+print 'Now is Q1.b and k is 3'
+
+#declare cluster centers (list) assmue (k=3) and initialize the cluster centers randomly
+centroids = []
+centroids.append(data[random.randint(0, data.shape[0])])
+centroids.append(data[random.randint(0, data.shape[0])])
+centroids.append(data[random.randint(0, data.shape[0])])
+
+
+i = 0 
+j = 0 
+# old_cluster1 = []
+# old_cluster2 = []
+# old_cluster3 = []
+
+while j <= 100:
+	cluster1 = []
+	cluster2 = []
+	cluster3 = []
+	for item in data:
+		distance1 = distance.euclidean(item, centroids[0])
+		distance2 = distance.euclidean(item, centroids[1])
+		distance3 = distance.euclidean(item, centroids[2])
+		if min(distance1, distance2, distance3) == distance1:
+			cluster1.append(item)
+		elif min(distance1, distance2, distance3) == distance2:
+			cluster2.append(item)
+		elif min(distance1, distance2, distance3) == distance3:
+			cluster3.append(item)
+
+	cluster1 = np.array(cluster1)
+	cluster2 = np.array(cluster2)
+	cluster3 = np.array(cluster3)
+
+	#recalculate the centroids
+
+	cluster1_mean = [np.mean(cluster1[:, 0]), np.mean(cluster1[:, 1])]
+	cluster2_mean = [np.mean(cluster2[:, 0]), np.mean(cluster2[:, 1])]
+	cluster3_mean = [np.mean(cluster3[:, 0]), np.mean(cluster3[:, 1])]
+	centroids = [cluster1_mean, cluster2_mean, cluster3_mean]
+
+	# if np.array_equal (cluster1, old_cluster1) and np.array_equal (cluster2, old_cluster2) and np.array_equal (cluster3, old_cluster3):
+	#  	i = 1
+
+	# old_cluster1 = cluster1[:]
+	# old_cluster2 = cluster2[:]
+	# old_cluster3 = cluster3[:]
+
+
+
+	if j == 0 or j == 5 or j == 10 or j == 100:
+		plt.plot(cluster1[:, 0], cluster1[:, 1], 'rx')
+		plt.plot(cluster2[:, 0], cluster2[:, 1], 'bx')
+		plt.plot(cluster3[:, 0], cluster3[:, 1], 'kx')
+		plt.scatter(cluster1_mean[0], cluster1_mean[1], c='red', s=50, label='centroid 1')
+		plt.scatter(cluster2_mean[0], cluster2_mean[1], c='blue', s=50, label='centroid 2')
+		plt.scatter(cluster3_mean[0], cluster3_mean[1], c='black', s=50, label='centroid 3')
+		plt.title('Clustering after iteration %s' % j)
+		plt.legend()
+		# plt.savefig('Q1b.iteration_%s.png' % j)
+		# plt.clf()
+		plt.show()
+	j += 1
+
+
+
