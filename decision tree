@@ -1,0 +1,175 @@
+import sys
+import matplotlib.pyplot as plt
+import random 
+import numpy as np
+import optparse
+import pandas as pd
+from sklearn import tree
+from sklearn.model_selection import train_test_split
+
+#set initial state of optparse(False for -v and -f by default)
+parser = optparse.OptionParser()
+parser.add_option('-f', '--file', dest='fileName', help='file name to read from')
+
+(options, others) = parser.parse_args()
+usingFile = False
+
+#start to read csv file...
+data = []
+if options.fileName is None:
+	print ("DEBUG: the user did not enter the -f option")
+else:
+	print ("DEBUG: the user entered the -f option")
+	usingFile = True
+
+if(usingFile == True):
+	print ("DEBUG: the file name entered was: ", options.fileName)
+	file = open(options.fileName, "r")
+	for line in file:
+		line = line.strip().split(';')
+		data.append(line)
+else:
+	print ("DEBUG: will read from standard input instead")
+	for line in sys.stdin.readlines():
+		line = line.strip().split(';')
+		data.append(line) 
+data = np.array(data)
+
+#since the heading rows and the first column are not the data that we're going to process, it is necessary to remove them
+heading_row = []
+for i in range(len(data [:,0])):
+	if data[:,0][i] == 'UserID':
+		heading_row.append(i)
+data = np.delete(data, heading_row, axis=0)
+data = np.delete(data, 0, axis=1)
+
+#remove missing data
+data_miss = []
+for i in range(data.shape[0]):
+	for j in range(data.shape[1]):
+		if data[i, j] == '':
+			data_miss.append(i)
+data = np.delete(data, data_miss, axis=0)
+
+#transfer categorical data into numerical data 
+df = pd.DataFrame(data)
+
+df.columns = ['Gender','Age','Marital_Status','Current_Plan',
+'Payment_Method','Contract_Length','Has_Kids','Other_Services_Bundled', 'Adopter_Class']
+
+df['Gender']=df['Gender'].map({'F':0.0,'M':1.0})
+df['Marital_Status']=df['Marital_Status'].map({'Married':0.0, 'Single': 1.0})
+df['Current_Plan']=df['Current_Plan'].map({'PrePaid' : 0.0, 'Low' : 0.0, 'Medium': 0.0, 'Heavy': 1.0})
+df['Payment_Method']=df['Payment_Method'].map({'Automatic': 0.0,'Non-Automatic': 1.0})
+df['Contract_Length']=df['Contract_Length'].map({'No Contract': 0.0, '12 Months':1.0, '24 months':1.0,'36 Months':1.0})
+df['Has_Kids']= df['Has_Kids'].map({'N':0.0, 'Y':1.0})
+df['Other_Services_Bundled'] = df['Other_Services_Bundled'].map({'N':0.0, 'Y':1.0})
+df['Adopter_Class'] = df['Adopter_Class'].map({'Very Early' : 0.0, 'Early' : 0.0, 'Late' : 0.0, 'Very Late' : 1.0})
+
+df.Age = pd.to_numeric(df.Age) #convert Age to floating
+
+NewArray=np.array(df)
+
+#then we need to split features and target
+target = NewArray[:,-1]#.T
+features = np.delete(NewArray, -1, axis=1)
+X_train, X_test, y_train, y_test = train_test_split(features, target, test_size=0.1, random_state=1234)
+
+#using Decision Tree Classifier to train the data and then claculate the accuracy under different max leaf nodes
+def tree_classification(depths):
+	max_leaf_nodes = [2, 4, 8, 16, 32, 64, 128, 256]
+	accuracy_plot = []
+	for nodes in max_leaf_nodes:
+		clf = tree.DecisionTreeClassifier(max_leaf_nodes=nodes,max_depth=depths)
+		clf.fit(X_train, y_train)
+		
+		correct = 0 
+		incorrect = 0
+		prediction = clf.predict(X_test)
+		for i in range(prediction.shape[0]):
+			if prediction[i] == y_test[i]:
+				correct += 1
+			else:
+				incorrect += 1
+
+		accuracy = float(correct) / (correct + incorrect)
+		accuracy_plot.append(accuracy)	
+	
+	#visualizing the data
+	plt.plot(max_leaf_nodes,accuracy_plot,label='max_depths = %s' % depths)
+	plt.xticks(max_leaf_nodes)
+	plt.xlabel("max_leaf_nodes")
+	plt.ylabel('Accuracy')
+	plt.legend()
+	for a,b in zip(max_leaf_nodes,accuracy_plot):
+		plt.text(a,b,'%.3f' % b, ha='center', va= 'bottom',fontsize=7)
+	plt.show()
+
+#specify different max tree depth
+max_depth = [None, 2,4,8,16]
+for depth in max_depth:
+	tree_classification(depths=depth)
+
+
+print '--------------------------------' #strat another part
+print ('Now pruning the data into 50:50')
+#dummy = input("press the <ENTER> key to continue")
+
+
+unique, counts = np.unique(target,return_counts=True)
+classes = dict(zip(unique, counts))
+print ("Before pruning the data, the number of 'Not very late adopters':", classes['0.0'], ", and the number of 'Very late adopters':", classes['1.0'])
+
+	
+#Prune the data, because the number of 'NotVeryLate' is greater than that of 'VeryLate', we need to prune 'NotVeryLate'
+NotVeryLate = [] 
+i = 0
+for i in range(len(target)):
+	if target[i] == '0.0':
+		NotVeryLate.append(i)
+	i += 1
+prune = random.sample(NotVeryLate, abs(classes['0.0']-classes['1.0']))
+features = np.delete(features, prune, axis=0)
+target = np.delete(target, prune, axis=0)
+print ("After pruning the data, the number of 'Very late' and 'Not very late' adopters are equal.")
+print ("Number of instances in input dataset:", len(features))
+print ("Number of 'Very late adopters':", classes['1.0'])
+
+
+#reserve 10% for the testing set
+X_train, X_test, y_train, y_test = train_test_split(features, target, test_size=0.1, random_state=1234)
+
+#using Decision Tree Classifier to train the data and then claculate the accuracy under different max leaf nodes
+def tree_classification(depths):
+	max_leaf_nodes = [2, 4, 8, 16, 32, 64, 128, 256]
+	accuracy_plot = []
+	for nodes in max_leaf_nodes:
+		clf = tree.DecisionTreeClassifier(max_leaf_nodes=nodes,max_depth=depths)
+		clf.fit(X_train, y_train)
+		
+		correct = 0 
+		incorrect = 0
+		prediction = clf.predict(X_test)
+		for i in range(prediction.shape[0]):
+			if prediction[i] == y_test[i]:
+				correct += 1
+			else:
+				incorrect += 1
+
+		accuracy = float(correct) / (correct + incorrect)
+		accuracy_plot.append(accuracy)	
+	
+	#visualizing the data
+	plt.plot(max_leaf_nodes,accuracy_plot,label='max_depths = %s' % depths)
+	plt.xticks(max_leaf_nodes)
+	plt.xlabel("max_leaf_nodes")
+	plt.ylabel('Accuracy')
+	plt.legend()
+	for a,b in zip(max_leaf_nodes,accuracy_plot):
+		plt.text(a,b,'%.3f' % b, ha='center', va= 'bottom',fontsize=7)
+	plt.show()
+
+#specify different max tree depth
+max_depth = [None, 2,4,8,16]
+for depth in max_depth:
+	tree_classification(depths=depth)
