@@ -1,4 +1,4 @@
-# a-start
+# what I have in python 
 import matplotlib.pyplot as plt
 
 def Beta(x, alpha, beta):
