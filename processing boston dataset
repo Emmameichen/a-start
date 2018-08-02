@@ -1,0 +1,75 @@
+import matplotlib.pyplot as plt
+import numpy as np
+from sklearn import datasets
+from sklearn.model_selection import train_test_split
+
+#load boston data
+boston = datasets.load_boston()
+data = boston.data
+target = boston.target
+
+#normalize data and target
+data_max = np.amax(data,axis=0)
+data_min = np.amin(data,axis=0)
+
+print (data_max)
+print (data_min)
+
+for i in range(data.shape[0]):
+	for j in range(data.shape[1]):
+		data[i,j] = (data[i,j] - data_min[j]) / (data_max[j] - data_min[j])
+
+for i in range(len(target)):
+	target[i] = (target[i] - np.amin(target)) / np.amax(target) - np.amin(target)
+
+#print data
+#print target
+
+#insert X0=1 for all data points for computation convenience
+data = np.insert(data,0,1,axis=1)
+
+#split training and test sets
+trainingX, testX, trainingY, testY = train_test_split(data, target, test_size=0.1,random_state = 1234)
+
+#define RMSE calculation
+def RMSE(X,Y,b):	
+	error = np.dot(X,b) - Y
+	MSE = (np.power(error,2)).mean()
+	return np.sqrt(MSE)
+
+#define gradient descent function
+def gradient_descent(rate):
+	#set the number of epochs
+	max_epochs = 10
+	current_epoch = 0
+	#initialize a coefficient list
+	coeff = np.zeros(trainingX.shape[1])
+	#initialize a RMSE_plot list for plot
+	RMSE_plot = []
+	#start the gradient descent
+	while current_epoch < max_epochs:	
+	#use training set to traing the data to get the coefficients
+		for i in range(0,len(trainingX)):
+			#to calculate error and adjust the coefficients
+			error = (np.dot(trainingX[i],coeff) - trainingY[i]) #/len(trainingX)
+			for b in range(len(coeff)):
+				coeff[b] = coeff[b] - rate * error * trainingX[i][b] 
+
+		#use test set to calculate RMSE
+		RMSEs_cal = RMSE(testX,testY,coeff)
+		RMSE_plot.append(RMSEs_cal)
+		current_epoch += 1
+		print ('At learning rate: %f after %d epochs:' % (rate, current_epoch))
+		print ("Coefficient list:")
+		print (coeff)
+	
+	xaxis = range(1,max_epochs+1)
+	plt.plot(xaxis,RMSE_plot,color='blue',linewidth=1)
+	for a,b in zip(xaxis,RMSE_plot):
+		plt.text(a, b, '%.4f' % b, ha='center', va= 'bottom', fontsize=8)
+	plt.show()
+
+#specify the learning rates
+learning_rate = [0.00001,0.0001,0.001,0.01,0.1,1]
+for rate in learning_rate:
+	gradient_descent(rate)
